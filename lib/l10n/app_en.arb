@@ -1,0 +1,318 @@
+{
+  "@@locale": "en",
+  "appTitle": "StoryShelf",
+  "appBarTitle": "STORYSHELF",
+  "addMp3Tooltip": "Add audiobook",
+  "navHome": "Home",
+  "navBooks": "Books",
+  "navAuthors": "Authors",
+  "navPlaying": "Playing",
+  "emptyLibraryTitle": "Your library is empty",
+  "emptyLibraryHint": "Tap + at the top right and pick one MP3 from an audiobook folder: StoryShelf imports all of its chapters.",
+  "addAudiobookButton": "Add audiobook",
+  "shelfRecent": "Recent",
+  "shelfBooks": "Books",
+  "shelfAuthors": "Authors",
+  "bookCount": "{count, plural, =1{1 book} other{{count} books}}",
+  "@bookCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "allBooksTooltip": "All books",
+  "booksByThisAuthor": "Books by this author",
+  "noBooksTitle": "No books yet",
+  "noBooksDetail": "Add MP3 files to start building your library.",
+  "addBooksButton": "Add books",
+  "allAuthorsTooltip": "All authors",
+  "noAuthorsTitle": "No authors yet",
+  "noAuthorsDetail": "Authors from your MP3 tags will appear here.",
+  "nothingPlayingTitle": "Nothing playing",
+  "nothingPlayingDetail": "Choose a book from your library to start listening.",
+  "showChaptersTooltip": "Show chapters",
+  "chapterOfTotal": "Chapter {current} of {total}",
+  "@chapterOfTotal": {
+    "placeholders": {
+      "current": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "back30Tooltip": "Back 30 seconds",
+  "back10Tooltip": "Back 10 seconds",
+  "forward30Tooltip": "Forward 30 seconds",
+  "previousChapterTooltip": "Previous chapter",
+  "nextChapterTooltip": "Next chapter",
+  "speedTooltip": "Playback speed",
+  "chaptersTitle": "Chapters",
+  "playTooltip": "Play",
+  "pauseTooltip": "Pause",
+  "stopTooltip": "Stop",
+  "audioFileCount": "{count, plural, =1{1 audio file} other{{count} audio files}}",
+  "@audioFileCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "removeFromLibrary": "Remove from library",
+  "removeConfirmTitle": "Remove from library?",
+  "removeConfirmBody": "The book, its imported files and its listening position are removed from StoryShelf. Your original files are not touched.",
+  "cancel": "Cancel",
+  "remove": "Remove",
+  "seekReadout": "{position} / {total}",
+  "@seekReadout": {
+    "placeholders": {
+      "position": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "imageCounter": "{index}/{count}",
+  "@imageCounter": {
+    "placeholders": {
+      "index": {
+        "type": "int"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "unknownAuthor": "Unknown author",
+  "errReceiveFile": "Could not receive the selected file: {error}",
+  "@errReceiveFile": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "errOpenFile": "Could not open the selected audio file: {error}",
+  "@errOpenFile": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "errSelectFiles": "Could not select audio files: {error}",
+  "@errSelectFiles": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "errNotMp3": "{name} is not an MP3 file",
+  "@errNotMp3": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "errListFolder": "Could not list the MP3 files next to \"{name}\": {error}",
+  "@errListFolder": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "errReadTags": "Could not read the tags of \"{name}\": {error}",
+  "@errReadTags": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "pickFolderTitle": "Select the folder containing this audiobook",
+  "noteOnlySelected": "Only the selected MP3 was added. Select its folder to import the other chapters.",
+  "noteNoMatches": "No other MP3 files in the selected folder have matching book title and author tags.",
+  "noteScanFailed": "Could not scan the audiobook folder. Only the selected MP3 was added: {error}",
+  "@noteScanFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "errNotLocalFolder": "The selected folder is not a local directory.",
+  "errNotFound": "{name} could not be found",
+  "@errNotFound": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "errFile": "{name}: {error}",
+  "@errFile": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "errCopyImages": "Could not copy the book images: {error}",
+  "@errCopyImages": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "importFailures": "Some files could not be imported:\n{details}",
+  "@importFailures": {
+    "placeholders": {
+      "details": {
+        "type": "String"
+      }
+    }
+  },
+  "importedFiles": "{count, plural, =1{Added 1 audio file to your library.} other{Added {count} audio files to your library.}}",
+  "@importedFiles": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "errSelectedNotMp3": "The selected item is not an MP3 file.",
+  "bookRemoved": "Removed \"{title}\" from your library.",
+  "@bookRemoved": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "errPlay": "Could not play \"{title}\": {error}",
+  "@errPlay": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      },
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "errPlaybackChange": "Playback could not be changed: {error}",
+  "@errPlaybackChange": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "errPlaybackStop": "Playback could not be stopped: {error}",
+  "@errPlaybackStop": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "errSeek": "Could not seek to that position: {error}",
+  "@errSeek": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "errOpenChapter": "Could not open chapter \"{title}\": {error}",
+  "@errOpenChapter": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      },
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "errPreviousFile": "Could not open the previous audio file: {error}",
+  "@errPreviousFile": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "errNextFile": "Could not open the next audio file: {error}",
+  "@errNextFile": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "errContinueNext": "Could not continue to the next audio file: {error}",
+  "@errContinueNext": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "errSpeed": "Playback speed could not be changed: {error}",
+  "@errSpeed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "errTagsFallback": "Some MP3 tags could not be read. Added \"{name}\" using its file name.",
+  "@errTagsFallback": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "errDuration": "Could not read the duration of \"{name}\": {error}",
+  "@errDuration": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "errLyrics": "Could not read the LYRICS tag in \"{name}\": {error}",
+  "@errLyrics": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "error": {
+        "type": "String"
+      }
+    }
+  }
+}
