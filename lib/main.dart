@@ -5,6 +5,7 @@ import 'package:cupertino_ui/cupertino_ui.dart'
     show GlobalCupertinoLocalizations;
 import 'package:flutter_localizations/flutter_localizations.dart'
     show GlobalWidgetsLocalizations;
+import 'package:just_audio_background/just_audio_background.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'l10n/app_localizations.dart';
@@ -25,6 +26,99 @@ extension L10nContext on BuildContext {
   AppLocalizations get l10n => AppLocalizations.of(this);
 }
 
+/// "1×", "1.25×", "1.5×": no trailing zeros.
+String formatSpeed(double speed) {
+  var text = speed.toStringAsFixed(2);
+  text = text.replaceFirst(RegExp(r'\.?0+$'), '');
+  return '$text×';
+}
+
+Future<void> showSpeedSheet(BuildContext context, AudiobookAppState app) {
+  return showModalBottomSheet<void>(
+    context: context,
+    showDragHandle: true,
+    builder: (_) => SpeedSheet(app: app),
+  );
+}
+
+class SpeedSheet extends StatelessWidget {
+  const SpeedSheet({super.key, required this.app});
+
+  final AudiobookAppState app;
+
+  static const presets = [0.75, 1.0, 1.25, 1.5, 2.0];
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return ListenableBuilder(
+      listenable: app,
+      builder: (context, _) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                context.l10n.speedTooltip,
+                style: theme.textTheme.titleMedium,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                formatSpeed(app.speed),
+                key: const ValueKey('speed-value'),
+                style: theme.textTheme.displaySmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Slider(
+                key: const ValueKey('speed-slider'),
+                value: app.speed,
+                min: AudiobookAppState.minSpeed,
+                max: AudiobookAppState.maxSpeed,
+                divisions:
+                    ((AudiobookAppState.maxSpeed - AudiobookAppState.minSpeed) /
+                            AudiobookAppState.speedStep)
+                        .round(),
+                label: formatSpeed(app.speed),
+                onChanged: app.setSpeed,
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(formatSpeed(AudiobookAppState.minSpeed)),
+                    Text(formatSpeed(AudiobookAppState.maxSpeed)),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  for (final preset in presets)
+                    ChoiceChip(
+                      key: ValueKey('speed-preset-$preset'),
+                      label: Text(formatSpeed(preset)),
+                      showCheckmark: false,
+                      visualDensity: VisualDensity.compact,
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      padding: const EdgeInsets.symmetric(horizontal: 2),
+                      labelPadding: const EdgeInsets.symmetric(horizontal: 6),
+                      selected: app.speed == preset,
+                      onSelected: (_) => app.setSpeed(preset),
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// Author as shown to the user ("Unknown Author" files are localized).
 String authorLabel(BuildContext context, String author) =>
     author == unknownAuthorKey ? context.l10n.unknownAuthor : author;
@@ -38,8 +132,14 @@ Locale resolveAppLocale(List<Locale>? deviceLocales) {
   return const Locale('en');
 }
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await JustAudioBackground.init(
+    androidNotificationChannelId: 'com.example.audiobook_player.channel.audio',
+    androidNotificationChannelName: 'Audiobook playback',
+    androidNotificationOngoing: true,
+    androidStopForegroundOnPause: true,
+  );
   runApp(const AudiobookPlayerApp());
 }
 
@@ -65,6 +165,7 @@ class _AudiobookPlayerAppState extends State<AudiobookPlayerApp>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
+      unawaited(app.syncPlaybackState());
       unawaited(app.takePlatformFile());
     }
   }
@@ -671,14 +772,14 @@ class PlayingPage extends StatelessWidget {
               height: 40,
               child: TextButton(
                 key: const ValueKey('speed-button'),
-                onPressed: app.cycleSpeed,
+                onPressed: () => showSpeedSheet(context, app),
                 style: TextButton.styleFrom(
                   padding: EdgeInsets.zero,
                   minimumSize: const Size(44, 40),
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
                 child: Text(
-                  '${app.speed.toStringAsFixed(1)}×',
+                  formatSpeed(app.speed),
                   style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.bold,

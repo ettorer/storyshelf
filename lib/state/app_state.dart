@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:audioplayers/audioplayers.dart';
+import '../audio/playback_backend.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart' show Locale;
@@ -18,7 +18,15 @@ import '../l10n/app_localizations.dart';
 import '../models/audiobook.dart';
 
 class AudiobookAppState extends ChangeNotifier {
-  final AudioPlayer _player = AudioPlayer();
+  AudiobookAppState({AudioPlaybackBackend? player})
+    : _player = player ?? JustAudioPlaybackBackend() {
+    _subscriptions.addAll([
+      _player.snapshots.listen(_onSnapshot),
+      _player.errors.listen((error) => _setMessage(l10n.errPlay(currentBook?.title ?? '', error))),
+    ]);
+  }
+
+  final AudioPlaybackBackend _player;
   final Map<String, int> _progressMs = {};
   final Map<int, Duration> _actualDurations = {};
   final List<StreamSubscription<dynamic>> _subscriptions = [];
@@ -33,6 +41,9 @@ class AudiobookAppState extends ChangeNotifier {
   StreamSubscription<List<SharedMediaFile>>? _sharingSubscription;
   Timer? _progressSaveTimer;
   bool _disposed = false;
+  bool _loadingBook = false;
+  bool _seeking = false;
+  bool _completed = false;
 
   List<AudioBook> books = [];
   List<String> _recentIds = [];
@@ -107,6 +118,7 @@ class AudiobookAppState extends ChangeNotifier {
     );
     await _libraryDirectory!.create(recursive: true);
     _recentIds = _preferences!.getStringList('recentBooks') ?? [];
+    speed = snapSpeed(_preferences!.getDouble('playback.speed') ?? 1);
     for (final entry in _preferences!.getKeys()) {
       if (entry.startsWith('progress.')) {
         final value = _preferences!.getInt(entry);
@@ -119,15 +131,7 @@ class AudiobookAppState extends ChangeNotifier {
     final storedPaths = _preferences!.getStringList('library.paths') ?? [];
     await _rebuildLibrary(storedPaths);
 
-    _subscriptions.addAll([
-      _player.onPositionChanged.listen(_onPosition),
-      _player.onDurationChanged.listen(_onDuration),
-      _player.onPlayerStateChanged.listen((state) {
-        playing = state == PlayerState.playing;
-        _notify();
-      }),
-      _player.onPlayerComplete.listen((_) => _advancePart()),
-    ]);
+
 
     _sharingSubscription = ReceiveSharingIntent.instance
         .getMediaStream()
@@ -472,6 +476,8 @@ class AudiobookAppState extends ChangeNotifier {
   Future<void> playBook(AudioBook book) async {
     if (book.parts.isEmpty) return;
     busy = true;
+    _loadingBook = true;
+    _completed = false;
     _saveProgress();
     currentBook = book;
     _actualDurations.clear();
@@ -487,13 +493,23 @@ class AudiobookAppState extends ChangeNotifier {
     _recentIds.remove(book.id);
     _recentIds.insert(0, book.id);
     if (_recentIds.length > 30) _recentIds = _recentIds.take(30).toList();
-    await _preferences!.setStringList('recentBooks', _recentIds);
+    await _preferences?.setStringList('recentBooks', _recentIds);
+    _resetImage(target.$2);
     _notify();
     try {
-      await _loadPart(target.$1, at: target.$2);
+      await _player.loadBook(
+        book,
+        initialIndex: target.$1,
+        initialPosition: target.$2,
+        speed: speed,
+        unknownAuthorLabel: l10n.unknownAuthor,
+      );
+      _loadingBook = false;
+      _applySnapshot(_player.currentSnapshot);
     } catch (error) {
       _setMessage(l10n.errPlay(book.title, '$error'));
     } finally {
+      _loadingBook = false;
       busy = false;
       _notify();
     }
@@ -506,7 +522,11 @@ class AudiobookAppState extends ChangeNotifier {
         await _player.pause();
         _saveProgress();
       } else {
-        await _player.resume();
+        if (_completed) {
+          _completed = false;
+          await _player.seek(Duration.zero, partIndex: 0);
+        }
+        await _player.play();
       }
     } catch (error) {
       _setMessage(l10n.errPlaybackChange('$error'));
@@ -523,6 +543,7 @@ class AudiobookAppState extends ChangeNotifier {
     }
     currentBook = null;
     currentPartIndex = 0;
+    _completed = false;
     _imageSync.reset(0);
     position = Duration.zero;
     duration = Duration.zero;
@@ -541,23 +562,20 @@ class AudiobookAppState extends ChangeNotifier {
         ? total
         : target;
     final location = _partAndOffset(book, clamped);
-    if (location.$1 != currentPartIndex) {
-      try {
-        await _loadPart(location.$1, at: location.$2);
-      } catch (error) {
-        _setMessage(l10n.errSeek('$error'));
-      }
-    } else {
-      try {
-        await _player.seek(location.$2);
-        _resetImage(location.$2);
-      } catch (error) {
-        _setMessage(l10n.errSeek('$error'));
-      }
+    _seeking = true;
+    try {
+      await _player.seek(location.$2, partIndex: location.$1);
+      _completed = false;
+      currentPartIndex = location.$1;
+      position = clamped;
+      _resetImage(location.$2);
+      _saveProgress();
+      _notify();
+    } catch (error) {
+      _setMessage(l10n.errSeek('$error'));
+    } finally {
+      _seeking = false;
     }
-    position = clamped;
-    _saveProgress();
-    _notify();
   }
 
   Future<void> seekBy(Duration amount) => seek(position + amount);
@@ -565,14 +583,22 @@ class AudiobookAppState extends ChangeNotifier {
   Future<void> seekChapter(BookChapter chapter) async {
     final book = currentBook;
     if (book == null) return;
-    currentPartIndex = chapter.partIndex;
-    position = chapter.absoluteOffset;
+    _seeking = true;
     try {
-      await _loadPart(chapter.partIndex, at: chapter.offset);
+      await _player.seek(chapter.offset, partIndex: chapter.partIndex);
+      _completed = false;
+      currentPartIndex = chapter.partIndex;
+      position = chapter.absoluteOffset;
+      _resetImage(chapter.offset);
+      if (!playing) {
+        await _player.play();
+      }
       _saveProgress();
       _notify();
     } catch (error) {
       _setMessage(l10n.errOpenChapter(chapter.title, '$error'));
+    } finally {
+      _seeking = false;
     }
   }
 
@@ -583,35 +609,77 @@ class AudiobookAppState extends ChangeNotifier {
       await seek(Duration.zero);
       return;
     }
+    final targetIndex = currentPartIndex - 1;
+    _seeking = true;
     try {
-      await _loadPart(currentPartIndex - 1);
+      await _player.seek(Duration.zero, partIndex: targetIndex);
+      _completed = false;
+      currentPartIndex = targetIndex;
+      position = _startOffsetForPart(book, targetIndex);
+      _resetImage(Duration.zero);
+      if (!playing) {
+        await _player.play();
+      }
       _saveProgress();
+      _notify();
     } catch (error) {
       _setMessage(l10n.errPreviousFile('$error'));
+    } finally {
+      _seeking = false;
     }
   }
 
   Future<void> nextChapter() async {
     final book = currentBook;
     if (book == null || currentPartIndex + 1 >= book.parts.length) return;
+    final targetIndex = currentPartIndex + 1;
+    _seeking = true;
     try {
-      await _loadPart(currentPartIndex + 1);
+      await _player.seek(Duration.zero, partIndex: targetIndex);
+      _completed = false;
+      currentPartIndex = targetIndex;
+      position = _startOffsetForPart(book, targetIndex);
+      _resetImage(Duration.zero);
+      if (!playing) {
+        await _player.play();
+      }
       _saveProgress();
+      _notify();
     } catch (error) {
       _setMessage(l10n.errNextFile('$error'));
+    } finally {
+      _seeking = false;
     }
   }
 
-  Future<void> cycleSpeed() async {
-    speed = speed >= 2
-        ? 0.5
-        : double.parse((speed + 0.2).clamp(0, 2).toStringAsFixed(1));
+  static const double minSpeed = 0.5;
+  static const double maxSpeed = 2.0;
+  static const double speedStep = 0.25;
+
+  /// Snaps [value] to the 0.25 grid between 0.5× and 2×.
+  static double snapSpeed(double value) {
+    final steps = ((value - minSpeed) / speedStep).round();
+    return (minSpeed + steps * speedStep).clamp(minSpeed, maxSpeed).toDouble();
+  }
+
+  Future<void> setSpeed(double value) async {
+    final next = snapSpeed(value);
+    if (next == speed) return;
+    speed = next;
+    _notify();
     try {
-      await _player.setPlaybackRate(speed);
+      await _player.setSpeed(speed);
     } catch (error) {
       _setMessage(l10n.errSpeed('$error'));
     }
-    _notify();
+    await _preferences?.setDouble('playback.speed', speed);
+  }
+
+  /// Refreshes UI state from the underlying background player (for example
+  /// after unlocking the phone and returning to the app).
+  Future<void> syncPlaybackState() async {
+    if (_disposed || currentBook == null || _loadingBook || _seeking) return;
+    _applySnapshot(_player.currentSnapshot);
   }
 
   void openTab(int tab) {
@@ -714,59 +782,78 @@ class AudiobookAppState extends ChangeNotifier {
     );
   }
 
-  Future<void> _loadPart(int index, {Duration at = Duration.zero}) async {
-    final book = currentBook!;
-    currentPartIndex = index.clamp(0, book.parts.length - 1).toInt();
-    position = _startOffsetForPart(book, currentPartIndex) + at;
-    duration = _durationForBook(book);
-    _resetImage(at);
-    await _player.stop();
-    await _player.setSource(
-      DeviceFileSource(book.parts[currentPartIndex].path),
-    );
-    await _player.setPlaybackRate(speed);
-    await _player.seek(at);
-    await _player.resume();
-    _notify();
+  void _onSnapshot(PlaybackSnapshot snapshot) {
+    if (_disposed || _loadingBook || _seeking) return;
+    _applySnapshot(snapshot);
   }
 
-  Future<void> _advancePart() async {
+  void _applySnapshot(PlaybackSnapshot snapshot) {
     final book = currentBook;
-    if (book == null) return;
-    if (currentPartIndex + 1 >= book.parts.length) {
-      position = _durationForBook(book);
+    if (book == null || book.parts.isEmpty) return;
+
+    if (snapshot.completed) {
+      final wasCompleted = _completed;
+      _completed = true;
+      currentPartIndex = book.parts.length - 1;
+      final total = _durationForBook(book);
+      duration = total;
+      position = total;
       playing = false;
       _progressMs[book.id] = position.inMilliseconds;
-      await _persistProgress(book.id);
+      _progressSaveTimer?.cancel();
+      unawaited(_persistProgress(book.id));
+      if (!wasCompleted) {
+        unawaited(_player.pause());
+      }
       _notify();
       return;
     }
-    try {
-      await _loadPart(currentPartIndex + 1);
-    } catch (error) {
-      _setMessage(l10n.errContinueNext('$error'));
+
+    _completed = false;
+    final previousPart = currentPartIndex;
+    final partIndex =
+        snapshot.partIndex.clamp(0, book.parts.length - 1).toInt();
+    final partChanged = partIndex != previousPart;
+    currentPartIndex = partIndex;
+
+    final reportedDuration = snapshot.partDuration;
+    if (reportedDuration != null && reportedDuration > Duration.zero) {
+      _actualDurations[partIndex] = reportedDuration;
     }
-  }
+    duration = _durationForBook(book);
 
-  void _onPosition(Duration localPosition) {
-    final book = currentBook;
-    if (book == null) return;
-    position = _startOffsetForPart(book, currentPartIndex) + localPosition;
-    _imageSync.update(
-      autoImageIndex(book.imagesByPart, currentPartIndex, localPosition),
-    );
-    _progressMs[book.id] = position.inMilliseconds;
-    _progressSaveTimer?.cancel();
-    _progressSaveTimer = Timer(const Duration(seconds: 2), () {
+    var localPosition = snapshot.localPosition < Duration.zero
+        ? Duration.zero
+        : snapshot.localPosition;
+    final partDur = _partDuration(book, partIndex);
+    if (partDur > Duration.zero && localPosition > partDur) {
+      localPosition = partDur;
+    }
+
+    position = _startOffsetForPart(book, partIndex) + localPosition;
+    final wasPlaying = playing;
+    playing = snapshot.playing;
+
+    if (partChanged) {
+      _resetImage(localPosition);
+      _progressMs[book.id] = position.inMilliseconds;
+      _progressSaveTimer?.cancel();
       unawaited(_persistProgress(book.id));
-    });
-    _notify();
-  }
-
-  void _onDuration(Duration value) {
-    _actualDurations[currentPartIndex] = value;
-    final book = currentBook;
-    if (book != null) duration = _durationForBook(book);
+    } else {
+      _imageSync.update(
+        autoImageIndex(book.imagesByPart, partIndex, localPosition),
+      );
+      _progressMs[book.id] = position.inMilliseconds;
+      if (wasPlaying && !playing) {
+        _progressSaveTimer?.cancel();
+        unawaited(_persistProgress(book.id));
+      } else {
+        _progressSaveTimer?.cancel();
+        _progressSaveTimer = Timer(const Duration(seconds: 2), () {
+          unawaited(_persistProgress(book.id));
+        });
+      }
+    }
     _notify();
   }
 

@@ -1,14 +1,42 @@
 package com.example.audiobook_player
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
+import android.os.Bundle
 import android.provider.DocumentsContract
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
+import com.ryanheise.audioservice.AudioServiceActivity
 import io.flutter.embedding.engine.FlutterEngine
-import io.flutter.embedding.android.FlutterActivity
 import io.flutter.plugin.common.MethodChannel
 import java.io.File
 import java.util.UUID
 
-class MainActivity : FlutterActivity() {
+class MainActivity : AudioServiceActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        requestNotificationPermissionIfNeeded()
+    }
+
+    private fun requestNotificationPermissionIfNeeded() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) ==
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            return
+        }
+        val prefs = getSharedPreferences("storyshelf_prefs", MODE_PRIVATE)
+        if (prefs.getBoolean("asked_post_notifications", false)) return
+        prefs.edit().putBoolean("asked_post_notifications", true).apply()
+        ActivityCompat.requestPermissions(
+            this,
+            arrayOf(Manifest.permission.POST_NOTIFICATIONS),
+            NOTIFICATION_PERMISSION_REQUEST_CODE
+        )
+    }
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         MethodChannel(
@@ -116,6 +144,7 @@ class MainActivity : FlutterActivity() {
     }
 
     companion object {
+        private const val NOTIFICATION_PERMISSION_REQUEST_CODE = 1001
         private val IMAGE_NAME = Regex(".*\\.(jpe?g|png|gif|webp|bmp)$", RegexOption.IGNORE_CASE)
     }
 }
