@@ -547,6 +547,120 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Could not read the LYRICS tag in \"{name}\": {error}'**
   String errLyrics(String name, String error);
+
+  /// No description provided for @addBookmarkTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Add bookmark'**
+  String get addBookmarkTooltip;
+
+  /// No description provided for @bookmarksTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Bookmarks'**
+  String get bookmarksTooltip;
+
+  /// No description provided for @bookmarksTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Bookmarks'**
+  String get bookmarksTitle;
+
+  /// No description provided for @bookmarksEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No bookmarks yet. Tap the bookmark button on the player to save your spot.'**
+  String get bookmarksEmpty;
+
+  /// No description provided for @bookmarkNewTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'New bookmark'**
+  String get bookmarkNewTitle;
+
+  /// No description provided for @bookmarkEditTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit bookmark'**
+  String get bookmarkEditTitle;
+
+  /// No description provided for @bookmarkNameLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get bookmarkNameLabel;
+
+  /// No description provided for @bookmarkNoteLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Note (optional)'**
+  String get bookmarkNoteLabel;
+
+  /// No description provided for @save.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get save;
+
+  /// No description provided for @edit.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit'**
+  String get edit;
+
+  /// No description provided for @delete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get delete;
+
+  /// No description provided for @undo.
+  ///
+  /// In en, this message translates to:
+  /// **'Undo'**
+  String get undo;
+
+  /// No description provided for @bookmarkSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Bookmark saved: {label}'**
+  String bookmarkSaved(String label);
+
+  /// No description provided for @bookmarkDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Bookmark deleted'**
+  String get bookmarkDeleted;
+
+  /// No description provided for @undoJumpTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to the previous spot (hold for history)'**
+  String get undoJumpTooltip;
+
+  /// No description provided for @redoJumpTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Forward to the next spot'**
+  String get redoJumpTooltip;
+
+  /// No description provided for @historyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Jump history'**
+  String get historyTitle;
+
+  /// No description provided for @historyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Spots you jumped away from, newest first. Tap one to go back there.'**
+  String get historyHint;
+
+  /// No description provided for @historyEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No jumps yet. Spots are saved when you change chapter, drag the progress bar or use a bookmark.'**
+  String get historyEmpty;
 }
 
 class _AppLocalizationsDelegate

@@ -16,6 +16,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../images/book_images.dart';
 import '../l10n/app_localizations.dart';
 import '../models/audiobook.dart';
+import 'bookmarks.dart';
+import 'jump_history.dart';
 
 class AudiobookAppState extends ChangeNotifier {
   AudiobookAppState({AudioPlaybackBackend? player})
@@ -46,6 +48,10 @@ class AudiobookAppState extends ChangeNotifier {
   bool _completed = false;
 
   List<AudioBook> books = [];
+
+  /// Bookmarks and jump history of [currentBook].
+  List<Bookmark> bookmarks = [];
+  JumpHistory history = JumpHistory();
   List<String> _recentIds = [];
   AudioBook? currentBook;
   int currentPartIndex = 0;
@@ -109,6 +115,12 @@ class AudiobookAppState extends ChangeNotifier {
     if (total <= Duration.zero) return 0;
     final value = _progressMs[book.id] ?? 0;
     return (value / total.inMilliseconds).clamp(0, 1).toDouble();
+  }
+
+  /// Lets tests use preferences without the platform setup of [initialize].
+  @visibleForTesting
+  void attachPreferences(SharedPreferences preferences) {
+    _preferences = preferences;
   }
 
   Future<void> initialize() async {
@@ -465,6 +477,10 @@ class AudiobookAppState extends ChangeNotifier {
     _progressMs.remove(book.id);
     _recentIds.remove(book.id);
     await preferences?.remove('progress.${book.id}');
+    if (preferences != null) {
+      await BookmarkStore.remove(preferences, book.id);
+      await JumpHistory.remove(preferences, book.id);
+    }
     await preferences?.setStringList('recentBooks', _recentIds);
     await preferences?.setStringList('library.paths', paths);
     await preferences?.setString('sourceMap', jsonEncode(sources));
@@ -480,6 +496,7 @@ class AudiobookAppState extends ChangeNotifier {
     _completed = false;
     _saveProgress();
     currentBook = book;
+    _loadBookExtras(book);
     _actualDurations.clear();
     final saved = Duration(milliseconds: _progressMs[book.id] ?? 0);
     final resumeAt = saved > const Duration(seconds: 5)
@@ -523,6 +540,7 @@ class AudiobookAppState extends ChangeNotifier {
         _saveProgress();
       } else {
         if (_completed) {
+          _recordJump();
           _completed = false;
           await _player.seek(Duration.zero, partIndex: 0);
         }
@@ -542,6 +560,8 @@ class AudiobookAppState extends ChangeNotifier {
       _setMessage(l10n.errPlaybackStop('$error'));
     }
     currentBook = null;
+    bookmarks = [];
+    history = JumpHistory();
     currentPartIndex = 0;
     _completed = false;
     _imageSync.reset(0);
@@ -552,7 +572,9 @@ class AudiobookAppState extends ChangeNotifier {
     _notify();
   }
 
-  Future<void> seek(Duration target) async {
+  /// Moves to [target] in the whole book. Jumps are recorded for undo unless
+  /// [record] is false (the small skip buttons).
+  Future<void> seek(Duration target, {bool record = true}) async {
     final book = currentBook;
     if (book == null) return;
     final total = _durationForBook(book);
@@ -562,6 +584,7 @@ class AudiobookAppState extends ChangeNotifier {
         ? total
         : target;
     final location = _partAndOffset(book, clamped);
+    if (record) _recordJump();
     _seeking = true;
     try {
       await _player.seek(location.$2, partIndex: location.$1);
@@ -578,11 +601,13 @@ class AudiobookAppState extends ChangeNotifier {
     }
   }
 
-  Future<void> seekBy(Duration amount) => seek(position + amount);
+  Future<void> seekBy(Duration amount) =>
+      seek(position + amount, record: false);
 
   Future<void> seekChapter(BookChapter chapter) async {
     final book = currentBook;
     if (book == null) return;
+    _recordJump();
     _seeking = true;
     try {
       await _player.seek(chapter.offset, partIndex: chapter.partIndex);
@@ -610,6 +635,7 @@ class AudiobookAppState extends ChangeNotifier {
       return;
     }
     final targetIndex = currentPartIndex - 1;
+    _recordJump();
     _seeking = true;
     try {
       await _player.seek(Duration.zero, partIndex: targetIndex);
@@ -633,6 +659,7 @@ class AudiobookAppState extends ChangeNotifier {
     final book = currentBook;
     if (book == null || currentPartIndex + 1 >= book.parts.length) return;
     final targetIndex = currentPartIndex + 1;
+    _recordJump();
     _seeking = true;
     try {
       await _player.seek(Duration.zero, partIndex: targetIndex);
@@ -673,6 +700,203 @@ class AudiobookAppState extends ChangeNotifier {
       _setMessage(l10n.errSpeed('$error'));
     }
     await _preferences?.setDouble('playback.speed', speed);
+  }
+
+  // ---- Jump history (undo / redo) ----------------------------------------
+
+  bool get canUndoJump => history.canUndo;
+  bool get canRedoJump => history.canRedo;
+
+  /// Where playback is now, as part index and offset inside that part.
+  Spot? _currentSpot() {
+    final book = currentBook;
+    if (book == null || book.parts.isEmpty) return null;
+    final part = currentPartIndex.clamp(0, book.parts.length - 1).toInt();
+    final local = position - _startOffsetForPart(book, part);
+    return Spot(part, local.isNegative ? 0 : local.inMilliseconds);
+  }
+
+  /// Remembers the current spot before a big jump.
+  void _recordJump() {
+    final book = currentBook;
+    final spot = _currentSpot();
+    if (book == null || spot == null) return;
+    history.record(spot);
+    _persistHistory();
+    _notify();
+  }
+
+  void _persistHistory() {
+    final preferences = _preferences;
+    final book = currentBook;
+    if (preferences == null || book == null) return;
+    unawaited(history.save(preferences, book.id));
+  }
+
+  void _loadBookExtras(AudioBook book) {
+    final preferences = _preferences;
+    bookmarks = preferences == null
+        ? []
+        : BookmarkStore.load(preferences, book.id);
+    history = preferences == null
+        ? JumpHistory()
+        : JumpHistory.load(preferences, book.id);
+  }
+
+  Future<void> undoJump() async {
+    final current = _currentSpot();
+    if (current == null || busy) return;
+    final wasCompleted = _completed;
+    final target = history.undo(current);
+    if (target == null) return;
+    _persistHistory();
+    _notify();
+    await _goToSpot(target, startPlaying: wasCompleted);
+  }
+
+  Future<void> redoJump() async {
+    final current = _currentSpot();
+    if (current == null || busy) return;
+    final wasCompleted = _completed;
+    final target = history.redo(current);
+    if (target == null) return;
+    _persistHistory();
+    _notify();
+    await _goToSpot(target, startPlaying: wasCompleted);
+  }
+
+  /// Picks entry [index] of `history.undoSpots` (0 is the oldest).
+  Future<void> jumpToHistory(int index) async {
+    final current = _currentSpot();
+    if (current == null || busy) return;
+    final wasCompleted = _completed;
+    final target = history.jumpTo(index, current);
+    if (target == null) return;
+    _persistHistory();
+    _notify();
+    await _goToSpot(target, startPlaying: wasCompleted);
+  }
+
+  /// Moves to [spot] without recording it as a jump.
+  Future<void> _goToSpot(Spot spot, {bool startPlaying = false}) async {
+    final book = currentBook;
+    if (book == null || book.parts.isEmpty) return;
+    final part = spot.partIndex.clamp(0, book.parts.length - 1).toInt();
+    var local = Duration(milliseconds: spot.offsetMs);
+    final partLength = _partDuration(book, part);
+    if (partLength > Duration.zero && local > partLength) local = partLength;
+    _seeking = true;
+    try {
+      await _player.seek(local, partIndex: part);
+      _completed = false;
+      currentPartIndex = part;
+      position = _startOffsetForPart(book, part) + local;
+      _resetImage(local);
+      if (startPlaying && !playing) await _player.play();
+      _saveProgress();
+      _notify();
+    } catch (error) {
+      _setMessage(l10n.errSeek('$error'));
+    } finally {
+      _seeking = false;
+    }
+  }
+
+  /// Chapter title and book time of a spot, for the history and bookmarks.
+  String spotChapter(int partIndex, int offsetMs) {
+    final book = currentBook;
+    if (book == null) return '';
+    return chapterTitleAt(book, partIndex, Duration(milliseconds: offsetMs));
+  }
+
+  Duration spotTime(int partIndex, int offsetMs) {
+    final book = currentBook;
+    if (book == null || book.parts.isEmpty) return Duration.zero;
+    final part = partIndex.clamp(0, book.parts.length - 1).toInt();
+    return _startOffsetForPart(book, part) + Duration(milliseconds: offsetMs);
+  }
+
+  // ---- Bookmarks ---------------------------------------------------------
+
+  /// "Chapter title · 1:02:45" for the current spot.
+  String defaultBookmarkLabel() {
+    final spot = _currentSpot();
+    if (spot == null) return '';
+    final chapter = spotChapter(spot.partIndex, spot.offsetMs);
+    final time = formatClock(spotTime(spot.partIndex, spot.offsetMs));
+    return chapter.isEmpty ? time : '$chapter · $time';
+  }
+
+  Future<void> addBookmark({String? label, String note = ''}) async {
+    final book = currentBook;
+    final spot = _currentSpot();
+    if (book == null || spot == null) return;
+    final now = DateTime.now().microsecondsSinceEpoch;
+    var id = '$now';
+    while (bookmarks.any((item) => item.id == id)) {
+      id = '${int.parse(id) + 1}';
+    }
+    final cleanLabel = (label ?? '').trim();
+    final bookmark = Bookmark(
+      id: id,
+      partIndex: spot.partIndex,
+      offsetMs: spot.offsetMs,
+      chapterTitle: spotChapter(spot.partIndex, spot.offsetMs),
+      label: cleanLabel.isEmpty ? defaultBookmarkLabel() : cleanLabel,
+      note: note.trim(),
+      createdMs: DateTime.now().millisecondsSinceEpoch,
+    );
+    bookmarks = BookmarkStore.sorted([...bookmarks, bookmark]);
+    _persistBookmarks();
+    _setMessage(l10n.bookmarkSaved(bookmark.label));
+  }
+
+  Future<void> updateBookmark(String id, {String? label, String? note}) async {
+    final index = bookmarks.indexWhere((item) => item.id == id);
+    if (index < 0) return;
+    final old = bookmarks[index];
+    final cleanLabel = (label ?? old.label).trim();
+    bookmarks = [...bookmarks]
+      ..[index] = old.copyWith(
+        label: cleanLabel.isEmpty ? old.label : cleanLabel,
+        note: note?.trim() ?? old.note,
+      );
+    _persistBookmarks();
+    _notify();
+  }
+
+  Future<void> deleteBookmark(String id) async {
+    bookmarks = bookmarks.where((item) => item.id != id).toList();
+    _persistBookmarks();
+    _notify();
+  }
+
+  /// Puts a deleted bookmark back (the "undo" of the delete snackbar).
+  Future<void> restoreBookmark(Bookmark bookmark) async {
+    if (bookmarks.any((item) => item.id == bookmark.id)) return;
+    bookmarks = BookmarkStore.sorted([...bookmarks, bookmark]);
+    _persistBookmarks();
+    _notify();
+  }
+
+  Future<void> jumpToBookmark(Bookmark bookmark) async {
+    if (currentBook == null || busy) return;
+    _recordJump();
+    await _goToSpot(
+      Spot(bookmark.partIndex, bookmark.offsetMs),
+      startPlaying: true,
+    );
+  }
+
+  void _persistBookmarks() {
+    final preferences = _preferences;
+    final book = currentBook;
+    if (preferences == null || book == null) {
+      _notify();
+      return;
+    }
+    unawaited(BookmarkStore.save(preferences, book.id, bookmarks));
+    _notify();
   }
 
   /// Refreshes UI state from the underlying background player (for example
@@ -924,6 +1148,19 @@ class AudiobookAppState extends ChangeNotifier {
     unawaited(_player.dispose());
     super.dispose();
   }
+}
+
+/// Title of the chapter playing at [local] inside part [partIndex]: the last
+/// timed chapter at or before it, else the part's own title.
+String chapterTitleAt(AudioBook book, int partIndex, Duration local) {
+  if (book.parts.isEmpty) return '';
+  final index = partIndex.clamp(0, book.parts.length - 1).toInt();
+  final part = book.parts[index];
+  var title = part.chapterTitle;
+  for (final chapter in part.chapters) {
+    if (chapter.offset <= local) title = chapter.title;
+  }
+  return title;
 }
 
 /// Copies the epub-to-audio extras that sit next to the chapter MP3s (the

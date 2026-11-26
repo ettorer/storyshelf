@@ -320,4 +320,67 @@ class AppLocalizationsIt extends AppLocalizations {
   String errLyrics(String name, String error) {
     return 'Impossibile leggere il tag LYRICS di \"$name\": $error';
   }
+
+  @override
+  String get addBookmarkTooltip => 'Aggiungi segnalibro';
+
+  @override
+  String get bookmarksTooltip => 'Segnalibri';
+
+  @override
+  String get bookmarksTitle => 'Segnalibri';
+
+  @override
+  String get bookmarksEmpty =>
+      'Nessun segnalibro. Tocca il pulsante del segnalibro nel player per salvare il punto.';
+
+  @override
+  String get bookmarkNewTitle => 'Nuovo segnalibro';
+
+  @override
+  String get bookmarkEditTitle => 'Modifica segnalibro';
+
+  @override
+  String get bookmarkNameLabel => 'Nome';
+
+  @override
+  String get bookmarkNoteLabel => 'Nota (facoltativa)';
+
+  @override
+  String get save => 'Salva';
+
+  @override
+  String get edit => 'Modifica';
+
+  @override
+  String get delete => 'Elimina';
+
+  @override
+  String get undo => 'Annulla';
+
+  @override
+  String bookmarkSaved(String label) {
+    return 'Segnalibro salvato: $label';
+  }
+
+  @override
+  String get bookmarkDeleted => 'Segnalibro eliminato';
+
+  @override
+  String get undoJumpTooltip =>
+      'Torna al punto precedente (tieni premuto per la cronologia)';
+
+  @override
+  String get redoJumpTooltip => 'Vai al punto successivo';
+
+  @override
+  String get historyTitle => 'Cronologia dei salti';
+
+  @override
+  String get historyHint =>
+      'I punti da cui ti sei spostato, dal più recente. Tocca un punto per tornarci.';
+
+  @override
+  String get historyEmpty =>
+      'Nessun salto. I punti vengono salvati quando cambi capitolo, trascini la barra di avanzamento o usi un segnalibro.';
 }

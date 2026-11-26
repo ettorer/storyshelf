@@ -317,4 +317,66 @@ class AppLocalizationsEn extends AppLocalizations {
   String errLyrics(String name, String error) {
     return 'Could not read the LYRICS tag in \"$name\": $error';
   }
+
+  @override
+  String get addBookmarkTooltip => 'Add bookmark';
+
+  @override
+  String get bookmarksTooltip => 'Bookmarks';
+
+  @override
+  String get bookmarksTitle => 'Bookmarks';
+
+  @override
+  String get bookmarksEmpty =>
+      'No bookmarks yet. Tap the bookmark button on the player to save your spot.';
+
+  @override
+  String get bookmarkNewTitle => 'New bookmark';
+
+  @override
+  String get bookmarkEditTitle => 'Edit bookmark';
+
+  @override
+  String get bookmarkNameLabel => 'Name';
+
+  @override
+  String get bookmarkNoteLabel => 'Note (optional)';
+
+  @override
+  String get save => 'Save';
+
+  @override
+  String get edit => 'Edit';
+
+  @override
+  String get delete => 'Delete';
+
+  @override
+  String get undo => 'Undo';
+
+  @override
+  String bookmarkSaved(String label) {
+    return 'Bookmark saved: $label';
+  }
+
+  @override
+  String get bookmarkDeleted => 'Bookmark deleted';
+
+  @override
+  String get undoJumpTooltip => 'Back to the previous spot (hold for history)';
+
+  @override
+  String get redoJumpTooltip => 'Forward to the next spot';
+
+  @override
+  String get historyTitle => 'Jump history';
+
+  @override
+  String get historyHint =>
+      'Spots you jumped away from, newest first. Tap one to go back there.';
+
+  @override
+  String get historyEmpty =>
+      'No jumps yet. Spots are saved when you change chapter, drag the progress bar or use a bookmark.';
 }

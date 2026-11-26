@@ -314,5 +314,31 @@
         "type": "String"
       }
     }
-  }
+  },
+  "addBookmarkTooltip": "Add bookmark",
+  "bookmarksTooltip": "Bookmarks",
+  "bookmarksTitle": "Bookmarks",
+  "bookmarksEmpty": "No bookmarks yet. Tap the bookmark button on the player to save your spot.",
+  "bookmarkNewTitle": "New bookmark",
+  "bookmarkEditTitle": "Edit bookmark",
+  "bookmarkNameLabel": "Name",
+  "bookmarkNoteLabel": "Note (optional)",
+  "save": "Save",
+  "edit": "Edit",
+  "delete": "Delete",
+  "undo": "Undo",
+  "bookmarkSaved": "Bookmark saved: {label}",
+  "@bookmarkSaved": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "bookmarkDeleted": "Bookmark deleted",
+  "undoJumpTooltip": "Back to the previous spot (hold for history)",
+  "redoJumpTooltip": "Forward to the next spot",
+  "historyTitle": "Jump history",
+  "historyHint": "Spots you jumped away from, newest first. Tap one to go back there.",
+  "historyEmpty": "No jumps yet. Spots are saved when you change chapter, drag the progress bar or use a bookmark."
 }

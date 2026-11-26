@@ -11,6 +11,8 @@ import 'package:material_ui/material_ui.dart';
 import 'l10n/app_localizations.dart';
 import 'models/audiobook.dart';
 import 'state/app_state.dart';
+import 'state/bookmarks.dart' show formatClock;
+import 'ui/bookmark_ui.dart';
 
 /// App strings plus Material/Cupertino/widget localizations. The Material
 /// and Cupertino ones come from material_ui/cupertino_ui, which this Flutter
@@ -690,19 +692,56 @@ class PlayingPage extends StatelessWidget {
       ),
       const SizedBox(height: 6),
       SizedBox(
-        height: lines(1, 12, 1.4),
-        child: Text(
-          book.parts.length > 1
-              ? context.l10n.chapterOfTotal(
-                  app.currentPartIndex + 1,
-                  book.parts.length,
-                )
-              : '',
-          style: const TextStyle(
-            color: Colors.white54,
-            fontSize: 12,
-            height: 1.4,
-          ),
+        key: const ValueKey('playing-tools-row'),
+        height: 36,
+        child: Row(
+          children: [
+            JumpIconButton(
+              key: const ValueKey('undo-jump'),
+              icon: Icons.undo_rounded,
+              tooltip: context.l10n.undoJumpTooltip,
+              onPressed: app.canUndoJump ? app.undoJump : null,
+              onLongPress: () => showHistorySheet(context, app),
+            ),
+            JumpIconButton(
+              key: const ValueKey('redo-jump'),
+              icon: Icons.redo_rounded,
+              tooltip: context.l10n.redoJumpTooltip,
+              onPressed: app.canRedoJump ? app.redoJump : null,
+            ),
+            Expanded(
+              child: Text(
+                book.parts.length > 1
+                    ? context.l10n.chapterOfTotal(
+                        app.currentPartIndex + 1,
+                        book.parts.length,
+                      )
+                    : '',
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.white54,
+                  fontSize: 12,
+                  height: 1.4,
+                ),
+              ),
+            ),
+            JumpIconButton(
+              key: const ValueKey('add-bookmark'),
+              icon: Icons.bookmark_add_outlined,
+              tooltip: context.l10n.addBookmarkTooltip,
+              onPressed: () => addBookmarkFlow(context, app),
+            ),
+            JumpIconButton(
+              key: const ValueKey('show-bookmarks'),
+              icon: app.bookmarks.isEmpty
+                  ? Icons.bookmarks_outlined
+                  : Icons.bookmarks_rounded,
+              tooltip: context.l10n.bookmarksTooltip,
+              onPressed: () => showBookmarksSheet(context, app),
+            ),
+          ],
         ),
       ),
       const SizedBox(height: 2),
@@ -1755,13 +1794,4 @@ class EmptyHint extends StatelessWidget {
   }
 }
 
-String _formatDuration(Duration duration) {
-  final totalSeconds = duration.inSeconds;
-  final hours = totalSeconds ~/ 3600;
-  final minutes = (totalSeconds % 3600) ~/ 60;
-  final seconds = totalSeconds % 60;
-  if (hours > 0) {
-    return '$hours:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
-  }
-  return '$minutes:${seconds.toString().padLeft(2, '0')}';
-}
+String _formatDuration(Duration duration) => formatClock(duration);
